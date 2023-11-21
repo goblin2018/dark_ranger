@@ -1,0 +1,3 @@
+struct Package {
+  name: String,
+}
