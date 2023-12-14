@@ -1,4 +1,4 @@
-struct Field {
+pub struct Field {
   name: String,
   field_type: FieldType,
   tag: Option<FiledTag>,
@@ -12,6 +12,7 @@ enum FieldType {
 }
 
 enum FiledTag {
+  Id,
   Phone,
   Image,
   File,

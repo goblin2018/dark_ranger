@@ -55,7 +55,7 @@ impl Scanner {
       }
 
       // 处理换行
-      match self.handle_space() {
+      match self.done_token() {
         Ok(()) => {}
         Err(err) => return Err(io::Error::new(io::ErrorKind::Other, err)),
       }
@@ -66,12 +66,12 @@ impl Scanner {
 
   fn process_character(&mut self, ch: char) -> Result<(), String> {
     match ch {
-      ' ' => self.handle_space(),
+      ' ' => self.done_token(),
       // 处理字母
       'a'..='z' | 'A'..='Z' => self.handle_aplha(ch),
       '_' => self.handle_(ch),
       // 处理数字
-      '0'..='9' => self.handle_number(),
+      '0'..='9' => self.handle_number(ch),
       '/' => self.handle_slash(),
       '.' => self.handle_dot(),
       '"' => self.handle_quote(),
@@ -109,6 +109,7 @@ impl Scanner {
           column: self.column,
           lexture: String::new(),
           token_type: TokenType::None,
+          filename: self.file_name.clone(),
         };
         self.curr_str.push(ch);
         Ok(())
@@ -133,8 +134,8 @@ impl Scanner {
     }
   }
 
-  fn handle_space(&mut self) -> Result<(), String> {
-    // 处理空格
+  // 已经匹配完成 当前token
+  fn done_token(&mut self) -> Result<(), String> {
     match self.state {
       State::Init => Ok(()),
       State::Str | State::Indentifier | State::Float | State::Int => {
@@ -152,7 +153,6 @@ impl Scanner {
             self.curr_token.lexture = self.curr_str.clone();
           }
         }
-
         self.tokens.push(self.curr_token.clone());
         self.curr_str = String::new();
         self.curr_token = Token::new();
@@ -162,9 +162,30 @@ impl Scanner {
     }
   }
 
-  fn handle_number(&mut self) -> Result<(), String> {
+  fn handle_number(&mut self, ch: char) -> Result<(), String> {
     // 处理数字
-    Ok(())
+    match self.state {
+      State::Init => {
+        self.state = State::Int;
+        self.curr_token = Token {
+          line: self.line,
+          column: self.column,
+          lexture: String::new(),
+          token_type: TokenType::Int,
+          filename: self.file_name.clone(),
+        };
+        self.curr_str.push(ch);
+        Ok(())
+      }
+      State::Str | State::Indentifier => {
+        self.curr_str.push(ch);
+        Ok(())
+      }
+      State::Float | State::Int => {
+        self.curr_str.push(ch);
+        Ok(())
+      }
+    }
   }
 
   fn handle_slash(&mut self) -> Result<(), String> {
@@ -202,14 +223,30 @@ impl Scanner {
     Ok(())
   }
 
+  fn handle_single(&mut self, token_type: TokenType) -> Result<(), String> {
+    // 如果 连接起来了 需要把上一次的token 处理掉
+    if self.curr_str.len() > 0 {
+      self.done_token()?;
+    }
+    // 处理字符
+    self.tokens.push(Token {
+      line: self.line,
+      column: self.column,
+      filename: self.file_name.clone(),
+      lexture: String::new(),
+      token_type: token_type,
+    });
+    Ok(())
+  }
+
   fn handle_lbrace(&mut self) -> Result<(), String> {
     // 处理{
-    Ok(())
+    self.handle_single(TokenType::LBrace)
   }
 
   fn handle_rbrace(&mut self) -> Result<(), String> {
     // 处理}
-    Ok(())
+    self.handle_single(TokenType::RBrace)
   }
 
   fn handle_lbracket(&mut self) -> Result<(), String> {

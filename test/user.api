@@ -1,1 +1,5 @@
-package user  
+package user
+
+type User {
+  Id int64
+}
